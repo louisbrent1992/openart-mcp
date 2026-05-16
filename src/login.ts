@@ -11,8 +11,12 @@ import { BASE_URL, STORAGE_STATE } from "./openart.js";
 
 async function main() {
   console.log(`Launching browser. Log into OpenArt, then press Enter here.`);
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
+  const browser = await chromium.launch({
+    headless: false,
+    channel: "chrome",
+    args: ["--disable-blink-features=AutomationControlled", "--start-maximized"],
+  });
+  const context = await browser.newContext({ viewport: null });
   const page = await context.newPage();
   await page.goto(BASE_URL);
 

@@ -20,8 +20,12 @@ export async function getContext(): Promise<BrowserContext> {
     );
   }
 
-  browser = await chromium.launch({ headless: HEADLESS });
-  context = await browser.newContext({ storageState: STORAGE_STATE });
+  browser = await chromium.launch({
+    headless: HEADLESS,
+    channel: "chrome",
+    args: ["--disable-blink-features=AutomationControlled", "--start-maximized"],
+  });
+  context = await browser.newContext({ storageState: STORAGE_STATE, viewport: null });
   return context;
 }
 
