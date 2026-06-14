@@ -14,7 +14,7 @@ MCP server + Claude skill for OpenArt.ai. OpenArt has no public API, so this dri
 | `openart_list_characters` | List every character in your OpenArt account |
 | `openart_get_character` | Get details for one character by ID |
 | `openart_create_character` | Create a new character from a local image |
-| `openart_generate_video` | Generate a video of a character speaking a script |
+| `openart_generate_video` | Generate a video from a text prompt (Text-to-Video) — e.g. product ads, optionally featuring a product photo or character |
 | `openart_get_video_status` | Check render status + URL of a generated video |
 
 ## Install
@@ -66,17 +66,22 @@ Environment variables (all optional):
 | `OPENART_STORAGE_STATE` | `~/.openart-mcp/auth.json` | Path to Playwright session JSON |
 | `OPENART_HEADLESS` | `true` | Set to `false` to see the browser during automation |
 
-## Selector setup (one-time)
+## Selectors
 
-The tools in `src/tools.ts` ship with placeholder DOM selectors marked `TODO`. OpenArt's UI changes over time, so the selectors need to be captured against the live site:
+The tools in `src/tools.ts` carry real DOM selectors captured against the live OpenArt "Infinite" suite UI (`/suite/characters-and-worlds`, `/suite/create-video`). Notes on this UI:
+
+- Characters have **no numeric IDs or per-asset URLs** — they're identified by **name**.
+- Generated videos are tracked by the feed card's `data-item-id` (returned from `openart_generate_video`).
+- `openart_generate_video` drives the **Text-to-Video** tool (good for product ads), not lip-sync.
+
+If OpenArt redesigns and the selectors break, re-capture them:
 
 ```bash
 npx playwright codegen https://openart.ai/suite/characters-and-worlds
+npx playwright codegen https://openart.ai/suite/create-video
 ```
 
-Click through the UI for each tool's flow. Playwright generates real selectors. Paste them into the TODO spots in `src/tools.ts`, rebuild (`npm run build`), and the tools work.
-
-If the selectors break later (OpenArt redesigns), repeat this step.
+Update the matching selectors in `src/tools.ts`, then rebuild (`npm run build`).
 
 ## Risks
 

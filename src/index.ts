@@ -29,10 +29,10 @@ const tools = [
   },
   {
     name: "openart_get_character",
-    description: "Get details for a specific OpenArt character by ID.",
+    description: "Get details for a specific OpenArt character by name (the current UI exposes no numeric ID).",
     inputSchema: {
       type: "object",
-      properties: { id: { type: "string", description: "Character ID" } },
+      properties: { id: { type: "string", description: "Character name" } },
       required: ["id"],
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
@@ -40,7 +40,7 @@ const tools = [
   {
     name: "openart_create_character",
     description:
-      "Create a new OpenArt character from an image. Provide name, local image path, optional background story, optional voice ID.",
+      "Create a new OpenArt character from a front-facing image. Provide name, local image path, optional background story. (voice_id is ignored — the current UI uses an audio upload/library picker.)",
     inputSchema: {
       type: "object",
       properties: {
@@ -55,21 +55,29 @@ const tools = [
   },
   {
     name: "openart_generate_video",
-    description: "Generate a video using an existing OpenArt character speaking a script.",
+    description:
+      "Generate a video from a text prompt via OpenArt's Text-to-Video tool. Good for product ads: describe the scene/action in `script` and optionally attach a product photo (`image_path`) or an existing character (`character_id`) so it appears in the shot. Spends credits (~400 tokens); renders async — poll openart_get_video_status with the returned id.",
     inputSchema: {
       type: "object",
       properties: {
-        character_id: { type: "string" },
-        script: { type: "string", description: "What the character says" },
-        aspect_ratio: { type: "string", enum: ["9:16", "16:9", "1:1"] },
+        script: {
+          type: "string",
+          description: "Video prompt — describe the scene/action (e.g. the product ad concept).",
+        },
+        character_id: { type: "string", description: "Optional: existing character name to feature." },
+        image_path: {
+          type: "string",
+          description: "Optional: absolute local path to a reference image (e.g. a product photo).",
+        },
+        aspect_ratio: { type: "string", enum: ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"] },
       },
-      required: ["character_id", "script"],
+      required: ["script"],
     },
     annotations: { destructiveHint: false, openWorldHint: true },
   },
   {
     name: "openart_get_video_status",
-    description: "Check the rendering status and URL of an OpenArt video by ID.",
+    description: "Check the render status (queued/rendering/complete/failed) and URL of a video by the id returned from openart_generate_video.",
     inputSchema: {
       type: "object",
       properties: { video_id: { type: "string" } },
@@ -106,9 +114,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case "openart_generate_video":
         result = await generateVideo(
           z.object({
-            character_id: z.string(),
             script: z.string(),
-            aspect_ratio: z.enum(["9:16", "16:9", "1:1"]).optional(),
+            character_id: z.string().optional(),
+            image_path: z.string().optional(),
+            aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]).optional(),
           }).parse(args)
         );
         break;
