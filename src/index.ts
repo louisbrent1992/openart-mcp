@@ -67,7 +67,8 @@ const tools = [
         byteplus_character: {
           type: "string",
           enum: ["Model", "Singer", "DJ/Music Producer", "Clerk/Administrative Staff", "Retiree"],
-          description: "Recommended way to include a person: select a BytePlus library character.",
+          description:
+            "Recommended way to include a person in the video: select a BytePlus library character. The terms 'character', 'model', 'person', 'spokesperson', 'avatar', and 'actor' are interchangeable — all map to this. Map role hints to the closest value (singer→Singer, DJ/producer→DJ/Music Producer, clerk/office→Clerk/Administrative Staff, older/retiree→Retiree); otherwise default to Model.",
         },
         image_path: {
           type: "string",

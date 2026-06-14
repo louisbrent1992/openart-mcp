@@ -1,6 +1,6 @@
 ---
 name: openart
-description: Use when the user wants to manage OpenArt.ai characters/avatars or generate videos (including product ads) with them. Triggers on "openart", "create avatar", "create character", "openart character", "openart video", "generate openart video", "product ad video", "make an ad", "list openart characters". Requires the openart-mcp server installed and authenticated.
+description: Use when the user wants to manage OpenArt.ai characters/avatars or generate videos (including product ads) with them. Triggers on "openart", "create avatar", "create character", "openart character", "openart video", "generate openart video", "product ad video", "make an ad", "add a person/model/character/spokesperson to a video", "list openart characters". Note: in requests, "character", "model", and "person" (and avatar/spokesperson/actor) are interchangeable. Requires the openart-mcp server installed and authenticated.
 ---
 
 # OpenArt Skill
@@ -23,7 +23,7 @@ Pair to the `openart-mcp` server (https://github.com/jbertus/openart-mcp). OpenA
 | "Show me [character name]" | `openart_list_characters` → `openart_get_character` |
 | "Create a new OpenArt character" / "make an avatar from this image" | `openart_create_character` |
 | "Make a product ad video" / "video of this product" | `openart_generate_video` { script, image_path } |
-| "Make a video with a person in it" | `openart_generate_video` { script, byteplus_character } |
+| "Add a person / model / character / spokesperson / avatar / actor" (all interchangeable) | `openart_generate_video` { script, byteplus_character } |
 | "Is the video done?" / "check video status" | `openart_get_video_status` |
 
 ## Argument tips
@@ -33,6 +33,9 @@ Pair to the `openart-mcp` server (https://github.com/jbertus/openart-mcp). OpenA
 - **`script`** (generate_video) is the **video prompt**: describe the scene, action, mood, and what the product/character does. It is NOT spoken dialogue — this UI generates a clip from the description; it does not lip-sync speech.
 - **`aspect_ratio`** options: `9:16` (vertical/Reels/Shorts/TikTok), `16:9` (landscape/YouTube), `1:1` (square), plus `4:3`, `3:4`, `21:9`. Best-effort; defaults to the tool's current setting if it can't be set.
 - **`byteplus_character`** (generate_video) is the **recommended** way to put a person in the shot. One of: `Model`, `Singer`, `DJ/Music Producer`, `Clerk/Administrative Staff`, `Retiree`. OpenArt's Seedance model warns that user-uploaded faces cause generation failures, so prefer these.
+- **"character", "model", "person", "spokesperson", "avatar", "actor", "presenter", "talent"** are all **interchangeable** in a user's request — every one of them means "attach a `byteplus_character`". Treat them the same; don't ask the user to disambiguate the wording.
+  - Map any role/description hint to the closest roster value: singer/musician → `Singer`; DJ/producer → `DJ/Music Producer`; clerk/office/admin/staff → `Clerk/Administrative Staff`; older/elderly/retiree/grandparent → `Retiree`; anything else, or a generic "person/model/character/spokesperson" → default to `Model`.
+  - Only fall back to `character_id` (a user's own created character) if the user explicitly insists on their own character — and warn it may fail on this model.
 - **Reference precedence** (generate_video): `byteplus_character` > `image_path` > `character_id`. Attach only one. `character_id` (a user's own character) is **discouraged** for this model and may fail.
 - **`background_story`** when creating a character: persona, mannerisms, wardrobe. OpenArt uses it for consistency across generations.
 - **Voice when creating a character** is an audio upload / library picker in the UI — the `voice_id` argument is currently ignored.
