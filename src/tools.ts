@@ -122,11 +122,39 @@ export async function createCharacter(params: {
   }
 }
 
-/** OpenArt's Lip-Sync tool is audio-driven (no text-to-speech), so we bridge the
- *  text `script` to speech locally. macOS `say` is used; other platforms aren't
- *  supported for TTS yet (pre-render audio and use Lip-Sync directly). */
 const ASPECT_RATIOS = ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"] as const;
 type AspectRatio = (typeof ASPECT_RATIOS)[number];
+
+/** BytePlus library characters in the Text-to-Video reference picker. OpenArt
+ *  recommends these over user-uploaded faces for the Seedance model — its banner:
+ *  "use characters from the BytePlus library ... to avoid generation failures". */
+const BYTEPLUS_CHARACTERS = ["Model", "Singer", "DJ/Music Producer", "Clerk/Administrative Staff", "Retiree"] as const;
+
+/** Click an element by its visible text via its center coordinate — several composer
+ *  controls sit under overlay layers that intercept a normal Playwright click. */
+async function clickByText(page: Page, text: string, exact = true): Promise<void> {
+  const box = await page.getByText(text, { exact }).first().boundingBox();
+  if (!box) throw new Error(`Control "${text}" not found in the Text-to-Video composer.`);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+/** Attach a BytePlus library character as the visual reference:
+ *  "Add visual references" -> "Characters" -> "BytePlus" -> click the named portrait.
+ *  The portrait attaches to the composer's reference slot (left, above the prompt). */
+async function attachBytePlusCharacter(page: Page, name: string): Promise<void> {
+  await page.getByText("Add visual references", { exact: false }).first().click();
+  await page.waitForTimeout(2500);
+  await clickByText(page, "Characters");
+  await page.waitForTimeout(3000);
+  await clickByText(page, "BytePlus");
+  await page.waitForTimeout(3000);
+  const portrait = page.locator(`img[alt="${name}"]`).first();
+  if (!(await portrait.count())) {
+    throw new Error(`BytePlus character "${name}" not found. Known: ${BYTEPLUS_CHARACTERS.join(", ")}.`);
+  }
+  await portrait.click({ force: true });
+  await page.waitForTimeout(3000);
+}
 
 /** Download a character's image (its thumbnail) to a temp file, to attach as a
  *  visual reference in Text-to-Video — robust vs. the name-less saved-character picker. */
@@ -147,32 +175,39 @@ async function downloadCharacterImage(nameOrId: string): Promise<string> {
 }
 
 /**
- * Generate a video from a text prompt via OpenArt's Text-to-Video tool
+ * Generate a video from a text prompt via OpenArt's Text-to-Video tool / Seedance
  * (https://openart.ai/suite/create-video).
  *
  * `script` is the video prompt — for a product ad, describe the scene/action and
- * what the product/character does. Optionally attach ONE visual reference so the
- * product or character appears in the shot:
- *   - `image_path`   — a local image (e.g. a product photo). Takes priority.
- *   - `character_id` — an existing character (by name); its image is referenced.
+ * what the product/character does. Optionally attach ONE visual reference so a
+ * person or product appears in the shot (precedence in this order):
+ *   - `byteplus_character` — a BytePlus library character (RECOMMENDED for people;
+ *     OpenArt warns user-uploaded faces cause generation failures). One of
+ *     BYTEPLUS_CHARACTERS.
+ *   - `image_path`   — a local image (e.g. a product photo), uploaded as a reference.
+ *   - `character_id` — an existing user character (by name), uploaded as a reference.
+ *     Discouraged by OpenArt for this model.
  *
  * The render is async and costs credits (~400 tokens). Poll getVideoStatus with
  * the returned id. `aspect_ratio` (best-effort) supports 9:16, 16:9, 1:1, 4:3, 3:4, 21:9.
  */
 export async function generateVideo(params: {
   script: string;
-  character_id?: string;
+  byteplus_character?: string;
   image_path?: string;
+  character_id?: string;
   aspect_ratio?: AspectRatio;
 }): Promise<Video> {
-  // Resolve the optional visual reference (product photo wins over character).
+  // Resolve an optional uploaded reference (only when not using a BytePlus character).
   let refPath: string | undefined;
   let refIsTemp = false;
-  if (params.image_path) {
-    refPath = params.image_path;
-  } else if (params.character_id) {
-    refPath = await downloadCharacterImage(params.character_id);
-    refIsTemp = true;
+  if (!params.byteplus_character) {
+    if (params.image_path) {
+      refPath = params.image_path;
+    } else if (params.character_id) {
+      refPath = await downloadCharacterImage(params.character_id);
+      refIsTemp = true;
+    }
   }
 
   const page = await newPage();
@@ -180,16 +215,18 @@ export async function generateVideo(params: {
     await gotoSuite(page, CREATE_VIDEO_URL);
     const before = new Set(await feedGenerationIds(page));
 
-    // Prompt — the "Describe your video" contenteditable.
-    const prompt = page.locator('[contenteditable="true"]').first();
-    await prompt.click();
-    await prompt.fill(params.script);
-
-    // Optional visual reference (product/character). Single combined file input.
-    if (refPath) {
+    // Attach a visual reference (optional). BytePlus picker wins; else upload a file.
+    if (params.byteplus_character) {
+      await attachBytePlusCharacter(page, params.byteplus_character);
+    } else if (refPath) {
       await page.locator('input[type="file"]').first().setInputFiles(refPath);
       await page.waitForTimeout(6000);
     }
+
+    // Prompt — the "Describe your video" contenteditable (clicking it also closes the picker).
+    const prompt = page.locator('[contenteditable="true"]').first();
+    await prompt.click();
+    await prompt.fill(params.script);
 
     // Aspect ratio (best-effort): open the "… | 720p | 5s" settings pill, click the ratio.
     if (params.aspect_ratio) {

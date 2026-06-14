@@ -12,7 +12,7 @@ Pair to the `openart-mcp` server (https://github.com/jbertus/openart-mcp). OpenA
 - `openart_list_characters` — return every character in the user's account
 - `openart_get_character` — fetch one character by **name** (this OpenArt UI has no numeric IDs)
 - `openart_create_character` — create a new character from a local front-facing image
-- `openart_generate_video` — generate a video from a **text prompt** (OpenArt's Text-to-Video). Good for **product ads**: describe the scene in `script` and optionally attach a product photo (`image_path`) or a character (`character_id`).
+- `openart_generate_video` — generate a video from a **text prompt** (OpenArt's Text-to-Video / Seedance). Good for **product ads**: describe the scene in `script` and optionally attach ONE reference — a **BytePlus library character** (`byteplus_character`, recommended for people), a product photo (`image_path`), or a user character (`character_id`).
 - `openart_get_video_status` — poll a video render by the id returned from `generate_video`
 
 ## Intent → tool routing
@@ -23,7 +23,7 @@ Pair to the `openart-mcp` server (https://github.com/jbertus/openart-mcp). OpenA
 | "Show me [character name]" | `openart_list_characters` → `openart_get_character` |
 | "Create a new OpenArt character" / "make an avatar from this image" | `openart_create_character` |
 | "Make a product ad video" / "video of this product" | `openart_generate_video` { script, image_path } |
-| "Make a video featuring [character]" | `openart_list_characters` (confirm name) → `openart_generate_video` { script, character_id } |
+| "Make a video with a person in it" | `openart_generate_video` { script, byteplus_character } |
 | "Is the video done?" / "check video status" | `openart_get_video_status` |
 
 ## Argument tips
@@ -32,7 +32,8 @@ Pair to the `openart-mcp` server (https://github.com/jbertus/openart-mcp). OpenA
 - **`image_path`** must be an **absolute local path** (Playwright reads from disk). For `generate_video`, this is the reference image — e.g. a **product photo** to feature in the ad.
 - **`script`** (generate_video) is the **video prompt**: describe the scene, action, mood, and what the product/character does. It is NOT spoken dialogue — this UI generates a clip from the description; it does not lip-sync speech.
 - **`aspect_ratio`** options: `9:16` (vertical/Reels/Shorts/TikTok), `16:9` (landscape/YouTube), `1:1` (square), plus `4:3`, `3:4`, `21:9`. Best-effort; defaults to the tool's current setting if it can't be set.
-- **`character_id`** (generate_video) is optional — attach an existing character so it appears in the shot. If both `image_path` and `character_id` are given, `image_path` wins.
+- **`byteplus_character`** (generate_video) is the **recommended** way to put a person in the shot. One of: `Model`, `Singer`, `DJ/Music Producer`, `Clerk/Administrative Staff`, `Retiree`. OpenArt's Seedance model warns that user-uploaded faces cause generation failures, so prefer these.
+- **Reference precedence** (generate_video): `byteplus_character` > `image_path` > `character_id`. Attach only one. `character_id` (a user's own character) is **discouraged** for this model and may fail.
 - **`background_story`** when creating a character: persona, mannerisms, wardrobe. OpenArt uses it for consistency across generations.
 - **Voice when creating a character** is an audio upload / library picker in the UI — the `voice_id` argument is currently ignored.
 

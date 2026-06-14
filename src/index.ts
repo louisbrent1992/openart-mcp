@@ -56,7 +56,7 @@ const tools = [
   {
     name: "openart_generate_video",
     description:
-      "Generate a video from a text prompt via OpenArt's Text-to-Video tool. Good for product ads: describe the scene/action in `script` and optionally attach a product photo (`image_path`) or an existing character (`character_id`) so it appears in the shot. Spends credits (~400 tokens); renders async — poll openart_get_video_status with the returned id.",
+      "Generate a video from a text prompt via OpenArt's Text-to-Video tool (Seedance). Good for product ads: describe the scene/action in `script`. Optionally attach ONE visual reference (precedence: byteplus_character > image_path > character_id). For people, prefer `byteplus_character` — OpenArt warns user-uploaded faces cause generation failures. Spends credits (~400 tokens); renders async — poll openart_get_video_status with the returned id.",
     inputSchema: {
       type: "object",
       properties: {
@@ -64,10 +64,18 @@ const tools = [
           type: "string",
           description: "Video prompt — describe the scene/action (e.g. the product ad concept).",
         },
-        character_id: { type: "string", description: "Optional: existing character name to feature." },
+        byteplus_character: {
+          type: "string",
+          enum: ["Model", "Singer", "DJ/Music Producer", "Clerk/Administrative Staff", "Retiree"],
+          description: "Recommended way to include a person: select a BytePlus library character.",
+        },
         image_path: {
           type: "string",
           description: "Optional: absolute local path to a reference image (e.g. a product photo).",
+        },
+        character_id: {
+          type: "string",
+          description: "Optional: existing user character name (discouraged for this model — may fail).",
         },
         aspect_ratio: { type: "string", enum: ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"] },
       },
@@ -115,8 +123,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         result = await generateVideo(
           z.object({
             script: z.string(),
-            character_id: z.string().optional(),
+            byteplus_character: z.string().optional(),
             image_path: z.string().optional(),
+            character_id: z.string().optional(),
             aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]).optional(),
           }).parse(args)
         );
